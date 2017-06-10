@@ -33,6 +33,9 @@
     <ClInclude Include="ReconhecedorFace.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VideoSocketTCP.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -48,6 +51,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ReconhecedorFace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VideoSocketTCP.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

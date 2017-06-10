@@ -40,9 +40,12 @@ public:
 	ReconhecedorFace() {
 		face_cascade.load(lbpFaceDetector_location);
 	}
-	cv::Rect detectarFace(cv::Mat);
+	void detectarFace(cv::Mat);
 
 private:
+	double ** getHistograma(cv::Mat);
+	double cosineDistance(double*, double*, int);
+	cv::Mat LBP(cv::Mat);
 	void salvarImagem(cv::Mat);
 
 };

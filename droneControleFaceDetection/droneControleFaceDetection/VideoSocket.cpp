@@ -42,7 +42,7 @@ VideoSocket::VideoSocket(void) {
 	Receber_addr_video.sin_port = htons(PORT);
 
 	//obter ip que conectou
-	char* ip = "192.168.25.106";
+	char* ip = "192.168.212.44";
 	Receber_addr_video.sin_addr.s_addr = inet_addr(ip);
 
 	//envia ack comunicando sucesso na conexao
@@ -84,21 +84,22 @@ void VideoSocket::receberBytes() {
 		for (int i = 0; i < tamanho_pacote && flag; i++) {
 
 			tamanhoMensagem = recvfrom(socketVideo, (char*)buffer, TAMANHO_BUFFER, 0, (sockaddr *)&Receber_addr_video, &len);
-			// enviarResposta(i + 1);
+
 			if (tamanhoMensagem != UDP_PACK_SIZE) {
 				int tamanho_pacote2 = (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | (buffer[3]);
-				cout << "perdeu pacotes " << i <<"de "<< tamanho_pacote2 << endl;
+				cout << "perdeu pacotes " << i <<" de "<< tamanho_pacote2 << endl;
 				flag = 0;
 				break;
 				//continue;
 			}
-
+			//enviarResposta(i + 1);
 			memcpy(&buffer_video[UDP_PACK_SIZE*i], (void*)buffer, UDP_PACK_SIZE);
 			//enviarResposta(i+1);
 		}
 		
 		if (!flag) continue;
 		decodificador->decodificadorYUVAndroid(buffer_video, tamanho_pacote);
+		//decodificador->decodificadorYUVAndroidMetade(buffer_video, tamanho_pacote);
 		
 	}
 }
@@ -139,45 +140,40 @@ int VideoSocket::enviarACK(void) {
 void VideoSocket::receberVideo2(void) {
 
 	//cria window
-	namedWindow("Imagem do Drone - IVISION!", CV_WINDOW_AUTOSIZE);
-	cout << "Janela criada";
+	Decodificador * decodificador = new Decodificador();
 	//buffer
-	char buffer[TAMANHO_BUFFER];
+	unsigned char buffer[TAMANHO_BUFFER];
 	int tamanhoMensagem;
 
 
 	while (1) {
 		
-		//recebe inicialmente o tamanho do frame
 		do {
-			
-			tamanhoMensagem = recvfrom(socketVideo, buffer, TAMANHO_BUFFER, 0, (sockaddr *)&Receber_addr_video, &len);
+			cout << "Aguardando receber..." << endl;
+			tamanhoMensagem = recvfrom(socketVideo, (char*)buffer, TAMANHO_BUFFER, 0, (sockaddr *)&Receber_addr_video, &len);
 			
 		} while (tamanhoMensagem > sizeof(int));
-		
-		cout << "Recebeu " << ++contador << endl;
-		//int tamanho_pacote = ((int *)buffer)[0];
-		int tamanho_pacote = buffer[tamanhoMensagem - 1];
-		//cout << "Recebeu o tamanho de " << tamanho_pacote << endl;
-		char * buffer_video = new char[UDP_PACK_SIZE*tamanho_pacote];
+		int tamanho_pacote = (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | (buffer[3]);
+		cout << tamanho_pacote << endl;
+		enviarResposta(tamanho_pacote);
+		unsigned char * buffer_video = new unsigned char[UDP_PACK_SIZE*tamanho_pacote];
 		int flag = 1;
+		
 		//recebe os dados
+
 		for (int i = 0; i < tamanho_pacote && flag; i++) {
-			//cout << "Recebendo packet " << i << "de " << tamanho_pacote << endl;
-			tamanhoMensagem = recvfrom(socketVideo, buffer, TAMANHO_BUFFER, 0, (sockaddr *)&Receber_addr_video, &len);
-			
+			tamanhoMensagem = recvfrom(socketVideo, (char*)buffer, TAMANHO_BUFFER, 0, (sockaddr *)&Receber_addr_video, &len);
+			//enviarResposta(i);
 			if (tamanhoMensagem != UDP_PACK_SIZE) {
-				//cout << "Recebeu pacote menor do que o tamanho UDP"<<endl <<"tamanho = "<<tamanhoMensagem<<endl;
-				//flag = 0;
-				continue;
+				flag = 0;
+				break;
+				//continue;
 			}
 			memcpy(&buffer_video[UDP_PACK_SIZE*i], buffer, UDP_PACK_SIZE);
 		}
 		//if (!flag) continue;
-
-		//cout << "Criando o MAT com a imagem recebida" << endl;
-		//cria MAT para armazenar
-		Mat matVideo = Mat(1, UDP_PACK_SIZE*tamanho_pacote, CV_8UC1, buffer_video);
+		decodificador->decodificadorMat(buffer_video, tamanho_pacote);
+		/*Mat matVideo = Mat(1, UDP_PACK_SIZE*tamanho_pacote, CV_8UC1, buffer_video);
 		if (matVideo.empty()) {
 			cout << "Mat Vazio"<<endl;
 			continue;
@@ -195,7 +191,7 @@ void VideoSocket::receberVideo2(void) {
 
 		waitKey(1);
 
-		free(buffer_video);
+		free(buffer_video);*/
 
 	}
 

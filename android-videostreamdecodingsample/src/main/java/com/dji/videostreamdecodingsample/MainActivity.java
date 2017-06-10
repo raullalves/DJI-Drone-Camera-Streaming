@@ -69,6 +69,7 @@ import java.util.List;
 
 import static org.opencv.core.CvType.CV_8UC1;
 import static org.opencv.core.CvType.CV_8UC3;
+import static org.opencv.core.CvType.CV_8UC4;
 import static org.opencv.imgproc.Imgproc.COLOR_YUV2RGBA_NV21;
 import static org.opencv.imgproc.Imgproc.COLOR_YUV2RGB_IYUV;
 import static org.opencv.imgproc.Imgproc.COLOR_YUV2RGB_NV21;
@@ -84,6 +85,7 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
     private static final String TAGOPENCV = "OpenCV";
     private ServerDrone server;
     public SendVideoDrone s;
+    //private SendVideoDroneTCP sendVideoDroneTCP;
     static final int MSG_WHAT_SHOW_TOAST = 0;
     static final int MSG_WHAT_UPDATE_TITLE = 1;
     static final boolean useSurface = true;
@@ -110,7 +112,7 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
     private File mCascadeFile;
     private CascadeClassifier mJavaDetector;
     private int mAbsoluteFaceSize = 0;
-    private float mRelativeFaceSize   = 0.2f;
+    private float mRelativeFaceSize   = 0.1f;
     private double xCenter = -1;
     private double yCenter = -1;
     private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 255, 0, 255);
@@ -150,10 +152,15 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
             Log.d(TAGOPENCV, "Face na posicao x = "+xCenter+" y = "+yCenter);
             Point center = new Point(xCenter, yCenter);
             Imgproc.circle(imagem_rgb, center, 10, new Scalar(255, 0, 0, 255), 3);
-            enviarMat(imagem_rgb);
+            Imgproc.line(imagem_rgb,center,new Point(imagem_gray.cols()/2, imagem_gray.rows()/2),new Scalar(255,255,0,255),3);
+            //Mat temp_img = new Mat(imagem, facesArray[i]);
+            //s.atualizarMat(temp_img);
+
 
 
         }
+        s.atualizarMat(imagem_rgb);
+        s.sendMat();
 
         return 1;
     }
@@ -169,9 +176,11 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
 
     void enviarMat(Mat img){
         Mat mat = img.clone();
-        s.sendMat(mat);
-        Log.d(TAGDEBUG, "Enviou "+ ++contador_imgs);
+        s.atualizarMat(mat);
+        s.sendMat();
+        //Log.d(TAGDEBUG, "Enviou "+ ++contador_imgs);
     }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -271,7 +280,7 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
                     {
 
                         showToast("Enable Virtual Stick Success");
-                        //server = new ServerDrone(mFlightController);
+                        server = new ServerDrone(mFlightController);
                     }
                 }
             });
@@ -351,6 +360,8 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
                                     + mCascadeFile.getAbsolutePath());
 
                         cascadeDir.delete();
+                        /*sendVideoDroneTCP = new SendVideoDroneTCP();
+                        sendVideoDroneTCP.procurarConexao();*/
                         s = new SendVideoDrone();
 
                     } catch (IOException e) {
@@ -509,22 +520,24 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
         });
     }
 
-    private void sendData(byte[] yuvFrame, int size){
-        s.sendByteData(yuvFrame, size);
-        Log.d(TAGALTERNATIVA, "Enviou "+size);
-    }
+   /* private void sendData(){
+        s.sendByteData();
+
+    }*/
 
     @Override
     public void onYuvDataReceived(byte[] yuvFrame, int width, int height) {
-        //In this demo, we test the YUV data by saving it into JPG files.
+
         Log.d(TAGOPENCV, "recebeu yuv");
         Log.d(TAGDEBUG,DJIVideoStreamDecoder.VIDEO_ENCODING_FORMAT);
 
         if (DJIVideoStreamDecoder.getInstance().frameIndex % 30 == 0) {
-            s.atualizarByteArray(yuvFrame);
-            sendData(yuvFrame, yuvFrame.length);
+            /*sendVideoDroneTCP.atualizarByteArray(yuvFrame, yuvFrame.length);
+            sendVideoDroneTCP.enviarByteArray();*/
 
-/*
+            /*s.atualizarByteArray(yuvFrame, yuvFrame.length);
+            s.sendByteData();*/
+
             byte[] y = new byte[width * height];
             byte[] u = new byte[width * height / 4];
             byte[] v = new byte[width * height / 4];
@@ -557,16 +570,25 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
                 }
             }
 
-            //nv21test
             byte[] bytes = new byte[yuvFrame.length];
             System.arraycopy(y, 0, bytes, 0, y.length);
             for (int i = 0; i < u.length; i++) {
                 bytes[y.length + (i * 2)] = nv[i];
                 bytes[y.length + (i * 2) + 1] = nu[i];
             }
+            Mat myuv = new Mat(height + height / 2, width, CV_8UC1);
+            myuv.put(0,0,bytes);
+
+            Mat picBGR = new Mat(height, width, CV_8UC4);
+
+            cvtColor(myuv, picBGR, Imgproc.COLOR_YUV2BGRA_NV21);
+            detectarFace(picBGR);
+            //enviarMat(picBGR);
+            /*s.atualizarByteArray(bytes, bytes.length);
+            s.sendByteData();*/
 
 
-            YuvImage yuvImage = new YuvImage(bytes,
+            /*YuvImage yuvImage = new YuvImage(bytes,
                     ImageFormat.NV21,
                     DJIVideoStreamDecoder.getInstance().width,
                     DJIVideoStreamDecoder.getInstance().height,

@@ -4,6 +4,7 @@
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define UDP_PACK_SIZE 4096 
+#define TCP_PACK_SIZE  4096*4
 #define ENCODE_QUALITY 80
 #define TAMANHO_BUFFER 65540
 #include <Ws2tcpip.h>
@@ -35,15 +36,21 @@ class Decodificador {
 	std::map<std::string, int> windows;
 	int height = 720;
 	int width = 1280;
+	ReconhecedorFace * r;
 	
 public:
 
 	void decodificadorYUVAndroid(unsigned char*, int);
+	void decodificadorYUVAndroidTCP(unsigned char*, int);
+	void decodificadorYUVAndroidMetade(unsigned char*, int);
+	void decodificadorMat(unsigned char*, int);
+	int contador = 1;
+
 	Decodificador(void){
-		//reconhecedorFace = new ReconhecedorFace();
+		r = new ReconhecedorFace();
 	};
 private:
-	
+	void salvarMat(cv::Mat);
 	void novaWindow(std::string, cv::Mat);
 
 };

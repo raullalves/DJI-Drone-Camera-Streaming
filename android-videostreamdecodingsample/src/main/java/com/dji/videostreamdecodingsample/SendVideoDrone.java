@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
 
+//import static com.dji.videostreamdecodingsample.SendVideoDrone.SendByteDataDroneThread.BUFFER_SIZE;
 import static org.opencv.imgproc.Imgproc.INTER_LINEAR;
 
 /**
@@ -30,6 +31,8 @@ import static org.opencv.imgproc.Imgproc.INTER_LINEAR;
 public class SendVideoDrone {
 
     private static byte[] byteDataTeste;
+    private static Mat img_enviar;
+    private static int size;
     private static final String TAG = "SendVideoDrone";
     static final int socketServerPORT = 11006;
     static DatagramSocket socketVideoDrone;
@@ -43,15 +46,33 @@ public class SendVideoDrone {
 
     }
 
-    public void atualizarByteArray(byte[] data){
+    public void atualizarMat(Mat mat){
+        Thread atualizarMatThread = new Thread(new AtualizarMatThread(mat));
+        atualizarMatThread.start();
+    }
 
-        Thread teste = new Thread(new atualizarByteArrayThread(data));
+    private class AtualizarMatThread extends Thread{
+
+        public AtualizarMatThread(Mat img){
+            img_enviar = img.clone();
+        }
+
+        @Override
+        public void run(){
+
+        }
+    }
+
+    public void atualizarByteArray(byte[] data, int sizeR){
+
+        Thread teste = new Thread(new atualizarByteArrayThread(data, sizeR));
         teste.start();
     }
 
     private class atualizarByteArrayThread extends Thread{
-        public atualizarByteArrayThread(byte[] temp){
+        public atualizarByteArrayThread(byte[] temp, int sizeR){
             byteDataTeste = temp.clone();
+            size = sizeR;
         }
         @Override
         public void run(){
@@ -60,9 +81,9 @@ public class SendVideoDrone {
 
     }
 
-    public void sendMat(Mat mat){
-        Mat img = mat.clone();
-        Thread SendVideoThread = new Thread(new SendVideoDroneThread(img, this.IPAddress));
+    public void sendMat(){
+        //Mat img = mat.clone();
+        Thread SendVideoThread = new Thread(new SendVideoDroneThread( this.IPAddress));
         SendVideoThread.start();
 
     }
@@ -97,8 +118,8 @@ public class SendVideoDrone {
         }
     }
 
-    public void sendByteData(byte[] data, int size){
-        Thread SendVideoThread = new Thread(new SendByteDataDroneThread(data, size, this.IPAddress));
+    public void sendByteData(){
+        Thread SendVideoThread = new Thread(new SendByteDataDroneThread(this.IPAddress));
         SendVideoThread.start();
     }
 
@@ -106,13 +127,13 @@ public class SendVideoDrone {
         static final int UDP_PACK_SIZE = 4096;
         private static final int BUFFER_SIZE = 1024;
         private byte[] byteData;
-        private int size;
+        private int sizeEnviar;
         InetAddress ip;
         byte[] ack = new byte[1024];
 
         public SendByteDataDroneThread(byte[] dataReceived, int size,InetAddress ip){
             this.byteData = dataReceived.clone();
-            this.size = size;
+           // this.size = size;
             dataReceived = null;
             this.ip = ip;
         }
@@ -123,8 +144,8 @@ public class SendVideoDrone {
 
         @Override
         public void run(){
-
-            int total_enviar = 1 + (this.size-1) / UDP_PACK_SIZE;
+            this.sizeEnviar = size;
+            int total_enviar = 1 + (this.sizeEnviar-1) / UDP_PACK_SIZE;
             Log.d(TAG, "ENviado "+total_enviar);
             DatagramPacket ackRecebido = new DatagramPacket(ack, ack.length);
 
@@ -137,7 +158,6 @@ public class SendVideoDrone {
             try{
                 socketVideoDrone.send(p);
                 do {
-
                     socketVideoDrone.receive(ackRecebido);
                     pacoteString = new String(ackRecebido.getData(), 0, ackRecebido.getLength());
                 }while(!pacoteString.equals(Integer.toString(total_enviar)));
@@ -153,9 +173,14 @@ public class SendVideoDrone {
 
                 byte[] slice = Arrays.copyOfRange( tempByte, UDP_PACK_SIZE*(i-1), UDP_PACK_SIZE*(i));
                 DatagramPacket framePacket = new DatagramPacket(slice, UDP_PACK_SIZE , this.ip, socketServerPORT);
-                //DatagramPacket ackRecebidoSeq = new DatagramPacket(ack, ack.length);
+                DatagramPacket ackRecebidoSeq = new DatagramPacket(ack, ack.length);
+                String pacoteString2;
                 try{
-                    socketVideoDrone.send(framePacket);
+                    do{
+                        socketVideoDrone.send(framePacket);
+                        socketVideoDrone.receive(ackRecebidoSeq);
+                        pacoteString2 = new String(ackRecebidoSeq.getData(), 0, ackRecebidoSeq.getLength());
+                    }while(!pacoteString2.equals(Integer.toString(i)));
                     /*socketVideoDrone.receive(ackRecebidoSeq);
                     String pacoteString2 = new String(ackRecebidoSeq.getData(), 0, ackRecebidoSeq.getLength());
 
@@ -177,41 +202,43 @@ public class SendVideoDrone {
         static final int FRAME_WIDTH = 640;
         static final double FRAME_INTERVAL = (1000/30);
         static final int UDP_PACK_SIZE = 4096;
-        static final int ENCODE_QUALITY = 30;
+        static final int ENCODE_QUALITY = 60;
         static final int TAMANHO_BUFFER = 65540;
+        static final int BUFFER_SIZE_B = 2048;
         Mat mat;
         Size size;
         InetAddress ip;
-        public SendVideoDroneThread(Mat img, InetAddress ip){
-            this.mat = img.clone();
+        public SendVideoDroneThread(InetAddress ip){
+            //this.mat = img.clone();
             this.size = new Size(FRAME_WIDTH, FRAME_HEIGHT);
             this.ip = ip;
         }
         @Override
         public void run() {
-
-            if (this.mat.empty()) {
-                Log.d(TAG, "Imagem vazia");
-                return;
-            }
+            byte[] ack = new byte[1024];
+            DatagramPacket ackRecebido = new DatagramPacket(ack, ack.length);
             MatOfByte encoded = new MatOfByte();
 
             MatOfInt params = new MatOfInt(Imgcodecs.IMWRITE_JPEG_QUALITY, ENCODE_QUALITY);
-            Imgproc.resize( this.mat, this.mat, size, 0, 0,INTER_LINEAR );
-            Imgcodecs.imencode(".jpg", this.mat, encoded, params);
+            Mat img_temp = img_enviar.clone();
+            Imgproc.resize( img_temp, img_temp, size, 0, 0,INTER_LINEAR );
+            Imgcodecs.imencode(".jpg", img_temp, encoded, params);
             int total_enviar = 1 + ((int)encoded.size().area() - 1) / UDP_PACK_SIZE;
-            Log.d(TAG, "Enviando "+total_enviar);
-            int[] buf = new int[1];
-            buf[0] = total_enviar;
+            Integer tamanho = total_enviar;
+            byte[] sendData = new byte[ BUFFER_SIZE_B ];
+            sendData = ByteBuffer.allocate(4).putInt( tamanho ).array();
 
-            ByteBuffer byteBuffer = ByteBuffer.allocate(4);
-            byteBuffer.putInt(total_enviar);
-
-            byte[] array = byteBuffer.array();
-
-            DatagramPacket p = new DatagramPacket(array, array.length , this.ip, socketServerPORT);
+            DatagramPacket p = new DatagramPacket(sendData, sendData.length , this.ip, socketServerPORT);
+            String pacoteString;
             try{
+
                 socketVideoDrone.send(p);
+                do {
+
+                    socketVideoDrone.receive(ackRecebido);
+                    pacoteString = new String(ackRecebido.getData(), 0, ackRecebido.getLength());
+                //if (!pacoteString.equals(Integer.toString(total_enviar))) return;
+                }while(!pacoteString.equals(Integer.toString(total_enviar)));
 
             }catch(IOException ex){
                 Log.d(TAG, "Erro no envio do int");
