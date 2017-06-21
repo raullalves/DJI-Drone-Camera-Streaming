@@ -1,6 +1,6 @@
 # DJI camera Streaming with UDP
-Stream and decode the DJI Drone Camera to a C/C++ app
-This app was based on the DJI SDK 4.0 samples, and is part of my undergrad thesis
+Stream and decode the DJI Drone Camera to a C/C++ app. 
+This app was based on the DJI SDK 4.0 samples, and is part of my undergrad thesis. 
 It contains two applications (one mobile for android, and another for desktop (tested on windows))
 
 # Example
