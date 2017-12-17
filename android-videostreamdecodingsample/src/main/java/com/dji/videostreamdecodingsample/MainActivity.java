@@ -85,7 +85,6 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
     private static final String TAGOPENCV = "OpenCV";
     private ServerDrone server;
     public SendVideoDrone s;
-    //private SendVideoDroneTCP sendVideoDroneTCP;
     static final int MSG_WHAT_SHOW_TOAST = 0;
     static final int MSG_WHAT_UPDATE_TITLE = 1;
     static final boolean useSurface = true;
@@ -119,66 +118,10 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
 
     protected VideoFeeder.VideoDataCallback mReceivedVideoDataCallBack = null;
 
-    private int detectarFace(Mat imagem){
-
-        Log.d(TAGOPENCV, "Iniciando o metodo de deteccao");
-        Mat imagem_rgb = imagem.clone();
-        Mat imagem_gray = new Mat();
-        cvtColor(imagem_rgb, imagem_gray, Imgproc.COLOR_RGB2GRAY);
-        Log.d(TAGOPENCV, "Imagem convertida para escala de cinza");
-        if (mAbsoluteFaceSize == 0) {
-            int height = imagem_gray.rows();
-            if (Math.round(height * mRelativeFaceSize) > 0) {
-                mAbsoluteFaceSize = Math.round(height * mRelativeFaceSize);
-            }
-        }
-
-        MatOfRect faces = new MatOfRect();
-
-        if (mJavaDetector != null)
-            mJavaDetector.detectMultiScale(imagem_gray, faces, 1.1, 2, 2,
-                    new Size(mAbsoluteFaceSize, mAbsoluteFaceSize), new Size());
-        Log.d(TAGOPENCV, "Aplicou a deteccao");
-        org.opencv.core.Rect[] facesArray = faces.toArray();
-
-        Log.d(TAGOPENCV, "Achou "+facesArray.length +" faces");
-
-        for (int i = 0; i < facesArray.length; i++){
-            Imgproc.rectangle(imagem_rgb, facesArray[i].tl(), facesArray[i].br(),
-                    FACE_RECT_COLOR, 3);
-            xCenter = (facesArray[i].x + facesArray[i].width + facesArray[i].x) / 2;
-            yCenter = (facesArray[i].y + facesArray[i].y + facesArray[i].height) / 2;
-
-            Log.d(TAGOPENCV, "Face na posicao x = "+xCenter+" y = "+yCenter);
-            Point center = new Point(xCenter, yCenter);
-            Imgproc.circle(imagem_rgb, center, 10, new Scalar(255, 0, 0, 255), 3);
-            Imgproc.line(imagem_rgb,center,new Point(imagem_gray.cols()/2, imagem_gray.rows()/2),new Scalar(255,255,0,255),3);
-            //Mat temp_img = new Mat(imagem, facesArray[i]);
-            //s.atualizarMat(temp_img);
-
-
-
-        }
+    void enviarMat(Mat img){
+        Mat imagem_rgb = img.clone();
         s.atualizarMat(imagem_rgb);
         s.sendMat();
-
-        return 1;
-    }
-
-    void saveMat(Mat mat){
-        Mat img = mat.clone();
-        cvtColor(img, img, CV_8UC1);
-        String path = Environment.getExternalStorageDirectory() + "/Faces";
-        final String finalPath = path + "/Face" + System.currentTimeMillis() + ".jpg";
-        Imgcodecs.imwrite(finalPath,img);
-        showToast("Salvou uma face");
-    }
-
-    void enviarMat(Mat img){
-        Mat mat = img.clone();
-        s.atualizarMat(mat);
-        s.sendMat();
-        //Log.d(TAGDEBUG, "Enviou "+ ++contador_imgs);
     }
 
     @Override
@@ -360,8 +303,6 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
                                     + mCascadeFile.getAbsolutePath());
 
                         cascadeDir.delete();
-                        /*sendVideoDroneTCP = new SendVideoDroneTCP();
-                        sendVideoDroneTCP.procurarConexao();*/
                         s = new SendVideoDrone();
 
                     } catch (IOException e) {
@@ -489,10 +430,6 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
         }
     }
 
-    /**
-     * Init a fake texture view to for the codec manager, so that the video raw data can be received
-     * by the camera
-     */
     private void initPreviewer() {
         videostreamPreviewTtView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
@@ -520,11 +457,6 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
         });
     }
 
-   /* private void sendData(){
-        s.sendByteData();
-
-    }*/
-
     @Override
     public void onYuvDataReceived(byte[] yuvFrame, int width, int height) {
 
@@ -532,11 +464,6 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
         Log.d(TAGDEBUG,DJIVideoStreamDecoder.VIDEO_ENCODING_FORMAT);
 
         if (DJIVideoStreamDecoder.getInstance().frameIndex % 30 == 0) {
-            /*sendVideoDroneTCP.atualizarByteArray(yuvFrame, yuvFrame.length);
-            sendVideoDroneTCP.enviarByteArray();*/
-
-            /*s.atualizarByteArray(yuvFrame, yuvFrame.length);
-            s.sendByteData();*/
 
             byte[] y = new byte[width * height];
             byte[] u = new byte[width * height / 4];
@@ -582,179 +509,13 @@ public class MainActivity extends Activity implements DJIVideoStreamDecoder.IYuv
             Mat picBGR = new Mat(height, width, CV_8UC4);
 
             cvtColor(myuv, picBGR, Imgproc.COLOR_YUV2BGRA_NV21);
-            detectarFace(picBGR);
-            //enviarMat(picBGR);
-            /*s.atualizarByteArray(bytes, bytes.length);
-            s.sendByteData();*/
-
-
-            /*YuvImage yuvImage = new YuvImage(bytes,
-                    ImageFormat.NV21,
-                    DJIVideoStreamDecoder.getInstance().width,
-                    DJIVideoStreamDecoder.getInstance().height,
-                    null);
-
-
-            Log.d(TAGOPENCV, "Converteu para YuV");
-
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-            yuvImage.compressToJpeg(new Rect(0,
-                    0,
-                    DJIVideoStreamDecoder.getInstance().width,
-                    DJIVideoStreamDecoder.getInstance().height), 100, os);
-
-
-            Log.d(TAGOPENCV, "Comprimmiu para Jpeg");
-            byte[] tempBytes = os.toByteArray();
-            Bitmap bitmap = BitmapFactory.decodeByteArray(tempBytes, 0, tempBytes.length);
-            Log.d(TAGOPENCV, "Criou o bitmap");
-            Mat imagem = new Mat();
-            Utils.bitmapToMat(bitmap, imagem);
-            enviarMat(imagem);
-            Log.d(TAGOPENCV, "Converteu para MAT");
-            detectarFace(imagem);*/
-
-
-            /*Mat yuv = new Mat(height+height/2, width, CV_8UC1);
-            yuv.put(0,0,bytes);
-            Mat imagem = new Mat();
-            //CV_YUV2RGBA_NV21
-            cvtColor(yuv, imagem, COLOR_YUV2RGBA_NV21);
-            enviarMat(imagem);*/
-           /* Mat yuv = new Mat(height, width, CV_8UC1);
-            yuv.put(0, 0, yuvFrame);
-            Mat rgb = new Mat(height, width, CV_8UC3);
-            cvtColor(yuv, rgb, COLOR_YUV420sp2BGRA);*/
-
-
+            enviarMat(picBGR);
         }
 
-
-        //region oldStuff
-        /*if (DJIVideoStreamDecoder.getInstance().frameIndex % 30 == 0) {
-            byte[] y = new byte[width * height];
-            byte[] u = new byte[width * height / 4];
-            byte[] v = new byte[width * height / 4];
-            byte[] nu = new byte[width * height / 4]; //
-            byte[] nv = new byte[width * height / 4];
-            System.arraycopy(yuvFrame, 0, y, 0, y.length);
-            for (int i = 0; i < u.length; i++) {
-                v[i] = yuvFrame[y.length + 2 * i];
-                u[i] = yuvFrame[y.length + 2 * i + 1];
-            }
-            int uvWidth = width / 2;
-            int uvHeight = height / 2;
-            for (int j = 0; j < uvWidth / 2; j++) {
-                for (int i = 0; i < uvHeight / 2; i++) {
-                    byte uSample1 = u[i * uvWidth + j];
-                    byte uSample2 = u[i * uvWidth + j + uvWidth / 2];
-                    byte vSample1 = v[(i + uvHeight / 2) * uvWidth + j];
-                    byte vSample2 = v[(i + uvHeight / 2) * uvWidth + j + uvWidth / 2];
-                    nu[2 * (i * uvWidth + j)] = uSample1;
-                    nu[2 * (i * uvWidth + j) + 1] = uSample1;
-                    nu[2 * (i * uvWidth + j) + uvWidth] = uSample2;
-                    nu[2 * (i * uvWidth + j) + 1 + uvWidth] = uSample2;
-                    nv[2 * (i * uvWidth + j)] = vSample1;
-                    nv[2 * (i * uvWidth + j) + 1] = vSample1;
-                    nv[2 * (i * uvWidth + j) + uvWidth] = vSample2;
-                    nv[2 * (i * uvWidth + j) + 1 + uvWidth] = vSample2;
-                }
-            }
-            //nv21test
-            byte[] bytes = new byte[yuvFrame.length];
-            System.arraycopy(y, 0, bytes, 0, y.length);
-            for (int i = 0; i < u.length; i++) {
-                bytes[y.length + (i * 2)] = nv[i];
-                bytes[y.length + (i * 2) + 1] = nu[i];
-            }
-            Log.d(TAG,
-                    "onYuvDataReceived: frame index: "
-                            + DJIVideoStreamDecoder.getInstance().frameIndex
-                            + ",array length: "
-                            + bytes.length);
-            screenShot(bytes, Environment.getExternalStorageDirectory() + "/DJI_ScreenShot");
-        }*/
-        //endregion
-    }
-
-    /**
-     * Save the buffered data into a JPG image file
-     */
-    private void screenShot(byte[] buf, String shotDir) {
-        File dir = new File(shotDir);
-        if (!dir.exists() || !dir.isDirectory()) {
-            dir.mkdirs();
-        }
-        YuvImage yuvImage = new YuvImage(buf,
-                ImageFormat.NV21,
-                DJIVideoStreamDecoder.getInstance().width,
-                DJIVideoStreamDecoder.getInstance().height,
-                null);
-        OutputStream outputFile;
-        final String path = dir + "/ScreenShot_" + System.currentTimeMillis() + ".jpg";
-        try {
-            outputFile = new FileOutputStream(new File(path));
-        } catch (FileNotFoundException e) {
-            Log.e(TAG, "test screenShot: new bitmap output file error: " + e);
-            return;
-        }
-        if (outputFile != null) {
-            yuvImage.compressToJpeg(new Rect(0,
-                    0,
-                    DJIVideoStreamDecoder.getInstance().width,
-                    DJIVideoStreamDecoder.getInstance().height), 100, outputFile);
-        }
-        try {
-            outputFile.close();
-        } catch (IOException e) {
-            Log.e(TAG, "test screenShot: compress yuv image error: " + e);
-            e.printStackTrace();
-        }
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                displayPath(path);
-            }
-        });
     }
 
     public void onClick(View v) {
         DJIVideoStreamDecoder.getInstance().changeSurface(null);
-       /*if (screenShot.isSelected()) {
-            screenShot.setText("Screen Shot");
-            screenShot.setSelected(false);
-            if (useSurface) {
-                //DJIVideoStreamDecoder.getInstance().changeSurface(videostreamPreviewSh.getSurface());
-                DJIVideoStreamDecoder.getInstance().changeSurface(null);
-            }
-            savePath.setText("");
-            savePath.setVisibility(View.INVISIBLE);
-        } else {
-            screenShot.setText("Live Stream");
-            screenShot.setSelected(true);
-            if (useSurface) {
-                DJIVideoStreamDecoder.getInstance().changeSurface(null);
-            }
-            savePath.setText("");
-            savePath.setVisibility(View.VISIBLE);
-            pathList.clear();
-        }*/
-    }
-
-    private void displayPath(String path){
-        path = path + "\n\n";
-        if(pathList.size() < 6){
-            pathList.add(path);
-        }else{
-            pathList.remove(0);
-            pathList.add(path);
-        }
-        StringBuilder stringBuilder = new StringBuilder();
-        for(int i = 0 ;i < pathList.size();i++){
-            stringBuilder.append(pathList.get(i));
-        }
-        savePath.setText(stringBuilder.toString());
     }
 
 }

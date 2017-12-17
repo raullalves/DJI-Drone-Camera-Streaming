@@ -38,12 +38,8 @@ public class SendVideoDrone {
     static DatagramSocket socketVideoDrone;
     public static InetAddress IPAddress;
     public SendVideoDrone(){
-        //trava enquanto algo não for recebido na porta específica
-
         Thread getACK = new Thread(new receiveACK());
         getACK.start();
-
-
     }
 
     public void atualizarMat(Mat mat){
@@ -63,12 +59,6 @@ public class SendVideoDrone {
         }
     }
 
-    public void atualizarByteArray(byte[] data, int sizeR){
-
-        Thread teste = new Thread(new atualizarByteArrayThread(data, sizeR));
-        teste.start();
-    }
-
     private class atualizarByteArrayThread extends Thread{
         public atualizarByteArrayThread(byte[] temp, int sizeR){
             byteDataTeste = temp.clone();
@@ -78,11 +68,9 @@ public class SendVideoDrone {
         public void run(){
 
         }
-
     }
 
     public void sendMat(){
-        //Mat img = mat.clone();
         Thread SendVideoThread = new Thread(new SendVideoDroneThread( this.IPAddress));
         SendVideoThread.start();
 
@@ -181,10 +169,6 @@ public class SendVideoDrone {
                         socketVideoDrone.receive(ackRecebidoSeq);
                         pacoteString2 = new String(ackRecebidoSeq.getData(), 0, ackRecebidoSeq.getLength());
                     }while(!pacoteString2.equals(Integer.toString(i)));
-                    /*socketVideoDrone.receive(ackRecebidoSeq);
-                    String pacoteString2 = new String(ackRecebidoSeq.getData(), 0, ackRecebidoSeq.getLength());
-
-                    if(!pacoteString2.equals(Integer.toString(i))) return;*/
 
                 }catch(IOException e){
                     Log.d(TAG, "Erro ao enviar o frame");
@@ -237,7 +221,6 @@ public class SendVideoDrone {
 
                     socketVideoDrone.receive(ackRecebido);
                     pacoteString = new String(ackRecebido.getData(), 0, ackRecebido.getLength());
-                //if (!pacoteString.equals(Integer.toString(total_enviar))) return;
                 }while(!pacoteString.equals(Integer.toString(total_enviar)));
 
             }catch(IOException ex){
